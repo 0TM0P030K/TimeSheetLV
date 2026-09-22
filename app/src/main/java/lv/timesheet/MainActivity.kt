@@ -36,13 +36,30 @@ fun loadS(c:Context,k:String,def:String):String{ return c.getSharedPreferences("
 fun saveS(c:Context,k:String,v:String){ c.getSharedPreferences("a",0).edit().putString(k,v).apply() }
 fun loadMap(c:Context,k:String):Map<String,String>{
  val s=c.getSharedPreferences("a",0).getString(k,null)?:return emptyMap()
- try{ val o=JSONObject(s); val m=mutableMapOf<String,String>(); val it=o.keys(); while(it.hasNext()){val kk=it.next(); m[kk]=o.getString(kk)}; return m }catch(e:Exception){return emptyMap()}
+ try{
+  val o=JSONObject(s)
+  val m=mutableMapOf<String,String>()
+  val it=o.keys()
+  while(it.hasNext()){
+   val kk=it.next()
+   m[kk]=o.getString(kk)
+  }
+  return m
+ }catch(e:Exception){return emptyMap()}
 }
-fun saveMap(c:Context,k:String,m:Map<String,String>){ val o=JSONObject(); for(e in m){o.put(e.key,e.value)}; c.getSharedPreferences("a",0).edit().putString(k,o.toString()).apply() }
+fun saveMap(c:Context,k:String,m:Map<String,String>){
+ val o=JSONObject()
+ for(e in m){o.put(e.key,e.value)}
+ c.getSharedPreferences("a",0).edit().putString(k,o.toString()).apply()
+}
 
 class MainActivity: ComponentActivity(){
- override fun onCreate(b:Bundle?){ super.onCreate(b); setContent{ MaterialTheme{ App() } } }
+ override fun onCreate(b:Bundle?){
+  super.onCreate(b)
+  setContent{ MaterialTheme{ App() } }
+ }
 }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun App(){
@@ -59,24 +76,57 @@ fun App(){
  var show by remember{mutableStateOf(false)}
  val norm=normS.toIntOrNull()?:168
 
- Scaffold(topBar={TopAppBar(title={Text(ym.monthValue.toString()+"."+ym.year.toString()+" N"+norm.toString())}, actions={Button(onClick={ym=ym.minusMonths(1)}){Text("<")}; Spacer(Modifier.width(4.dp)); Button(onClick={ym=ym.plusMonths(1)}){Text(">")}})}){pad->
+ Scaffold(topBar={
+  TopAppBar(
+   title={Text(ym.monthValue.toString()+"."+ym.year.toString()+" N"+norm.toString())},
+   actions={
+    Button(onClick={ym=ym.minusMonths(1)}){Text("<")}
+    Spacer(Modifier.width(4.dp))
+    Button(onClick={ym=ym.plusMonths(1)}){Text(">")}
+   }
+  )
+ }){pad->
   Column(Modifier.fillMaxSize().padding(pad).padding(8.dp).verticalScroll(rememberScrollState())){
-   Row{ OutlinedTextField(value=okladS,onValueChange={okladS=it;saveS(ctx,"O",it)},label={Text("Oklads")},modifier=Modifier.weight(1f)); Spacer(Modifier.width(4.dp)); OutlinedTextField(value=neaplS,onValueChange={neaplS=it;saveS(ctx,"NE",it)},label={Text("Neapl")},modifier=Modifier.width(80.dp)); Spacer(Modifier.width(4.dp)); OutlinedTextField(value=apgS,onValueChange={apgS=it;saveS(ctx,"A",it)},label={Text("Apg")},modifier=Modifier.width(70.dp)) }
-   Row{ OutlinedTextField(value=normS,onValueChange={normS=it;saveS(ctx,"N"+mk,it)},label={Text("Norma")},modifier=Modifier.weight(1f)); Spacer(Modifier.width(4.dp)); OutlinedTextField(value=premS,onValueChange={premS=it;saveS(ctx,"P"+mk,it)},label={Text("Prem")},modifier=Modifier.weight(1f)) }
+   Row{
+    OutlinedTextField(value=okladS,onValueChange={okladS=it;saveS(ctx,"O",it)},label={Text("Oklads")},modifier=Modifier.weight(1f))
+    Spacer(Modifier.width(4.dp))
+    OutlinedTextField(value=neaplS,onValueChange={neaplS=it;saveS(ctx,"NE",it)},label={Text("Neapl")},modifier=Modifier.width(80.dp))
+    Spacer(Modifier.width(4.dp))
+    OutlinedTextField(value=apgS,onValueChange={apgS=it;saveS(ctx,"A",it)},label={Text("Apg")},modifier=Modifier.width(70.dp))
+   }
+   Row{
+    OutlinedTextField(value=normS,onValueChange={normS=it;saveS(ctx,"N"+mk,it)},label={Text("Norma")},modifier=Modifier.weight(1f))
+    Spacer(Modifier.width(4.dp))
+    OutlinedTextField(value=premS,onValueChange={premS=it;saveS(ctx,"P"+mk,it)},label={Text("Prem %")},modifier=Modifier.weight(1f))
+   }
    Spacer(Modifier.height(8.dp))
    val totD=days.values.mapNotNull{it.toDoubleOrNull()}.sum()
    val totN=nights.values.mapNotNull{it.toDoubleOrNull()}.sum()
    val virs=max(0.0,totD-norm.toDouble())
    val lidz=min(totD,norm.toDouble())
+
    for(d in 1..ym.lengthOfMonth()){
     val dow=ym.atDay(d).dayOfWeek
     val bg=if(dow==DayOfWeek.SATURDAY||dow==DayOfWeek.SUNDAY) Color(0xFFFFEBEE) else Color.White
     val dv=days[d.toString()]?:""
     val nv=nights[d.toString()]?:""
-    Row(Modifier.fillMaxWidth().background(bg).padding(vertical=2.dp)){ Text(d.toString()+" "+sDay(dow),Modifier.width(60.dp),fontWeight=FontWeight.Bold); OutlinedTextField(value=dv,onValueChange={v->val m=days.toMutableMap();m[d.toString()]=v;days=m;saveMap(ctx,"D"+mk,m)},modifier=Modifier.width(75.dp).padding(end=4.dp),singleLine=true); OutlinedTextField(value=nv,onValueChange={v->val m=nights.toMutableMap();m[d.toString()]=v;nights=m;saveMap(ctx,"N2"+mk,m)},modifier=Modifier.width(75.dp),singleLine=true) }
+    Row(Modifier.fillMaxWidth().background(bg).padding(vertical=2.dp)){
+     Text(d.toString()+" "+sDay(dow),Modifier.width(60.dp),fontWeight=FontWeight.Bold)
+     OutlinedTextField(value=dv,onValueChange={v->val m=days.toMutableMap();m[d.toString()]=v;days=m;saveMap(ctx,"D"+mk,m)},modifier=Modifier.width(75.dp).padding(end=4.dp),singleLine=true)
+     OutlinedTextField(value=nv,onValueChange={v->val m=nights.toMutableMap();m[d.toString()]=v;nights=m;saveMap(ctx,"N2"+mk,m)},modifier=Modifier.width(75.dp),singleLine=true)
+    }
    }
-   Card(Modifier.fillMaxWidth().padding(top=8.dp),colors=CardDefaults.cardColors(containerColor=Color(0xFFE8F5E9))){ Column(Modifier.padding(8.dp)){ Text("D "+totD.toString()+" / "+norm.toString(),fontWeight=FontWeight.Bold); if(virs>0) Text("VIRS "+virs.toString(),color=Color.Red); Text("Nakts "+totN.toString()) } }
+
+   Card(Modifier.fillMaxWidth().padding(top=8.dp),colors=CardDefaults.cardColors(containerColor=Color(0xFFE8F5E9))){
+    Column(Modifier.padding(8.dp)){
+     Text("D "+totD.toString()+" / "+norm.toString(),fontWeight=FontWeight.Bold)
+     if(virs>0) Text("VIRS "+virs.toString(),color=Color.Red)
+     Text("Nakts "+totN.toString())
+    }
+   }
+
    Button(onClick={show=true},Modifier.fillMaxWidth().padding(top=8.dp)){Text("ALGA")}
+
    if(show){
     val oklad=okladS.toDoubleOrNull()?:0.0
     val likme=if(norm>0) oklad/norm.toDouble() else 0.0
@@ -95,7 +145,31 @@ fun App(){
     val apliek=max(0.0,tmp)
     val iin=apliek*0.255
     val neto=bruto-vsaoi-iin
-    Dialog(onDismissRequest={show=false}){ Card(Modifier.fillMaxWidth().padding(16.dp)){ Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState())){ Text("Aprekins",fontWeight=FontWeight.Bold); Text("Likme "+String.format("%.2f",likme)); Text("Base "+String.format("%.2f",base)); Text("Virs "+String.format("%.2f",vP)); Text("Nakts "+String.format("%.2f",nP)); Text("BRUTO "+String.format("%.2f",bruto),fontWeight=FontWeight.Bold); Text("VSAOI -"+String.format("%.2f",vsaoi)); Text("IIN -"+String.format("%.2f",iin)); Divider(Modifier.padding(vertical=8.dp)); Text("NETO "+String.format("%.2f",neto),fontWeight=FontWeight.Bold,color=Color(0xFF2E7D32)); Button(onClick={show=false},Modifier.fillMaxWidth()){Text("OK")} } } }
+
+    Dialog(onDismissRequest={show=false}){
+     Card(Modifier.fillMaxWidth().padding(16.dp)){
+      Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState())){
+       Text("Aprekins",fontWeight=FontWeight.Bold)
+       Text("Likme "+String.format("%.2f",likme))
+       Text("Base "+String.format("%.2f",base))
+       Text("Virs "+String.format("%.2f",vP))
+       Text("Nakts "+String.format("%.2f",nP))
+       Text("Prem N "+String.format("%.2f",pN))
+       Text("Prem V "+String.format("%.2f",pV))
+       Divider(Modifier.padding(vertical=8.dp))
+       Text("BRUTO "+String.format("%.2f",bruto),fontWeight=FontWeight.Bold)
+       Text("VSAOI -"+String.format("%.2f",vsaoi))
+       Text("Neapl -"+String.format("%.2f",neapl))
+       Text("Apg -"+String.format("%.2f",atv))
+       Text("Apliek "+String.format("%.2f",apliek))
+       Text("IIN -"+String.format("%.2f",iin),fontWeight=FontWeight.Bold)
+       Divider(Modifier.padding(vertical=8.dp))
+       Text("NETO "+String.format("%.2f",neto),fontWeight=FontWeight.Bold,color=Color(0xFF2E7D32))
+       Spacer(Modifier.height(12.dp))
+       Button(onClick={show=false},Modifier.fillMaxWidth()){Text("OK")}
+      }
+     }
+    }
    }
   }
  }
