@@ -4,103 +4,90 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateMap
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import java.time.LocalDate
 import java.time.YearMonth
 
-data class Employee(var name: String, val hours: MutableMap<Int, String> = mutableMapOf())
+data class DayHours(var day: String = "", var night: String = "")
+data class Employee(val id: Int, var name: String, val days: SnapshotStateMap<Int, DayHours> = mutableStateMapOf())
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent {
-            MaterialTheme {
-                TimeSheetScreen()
-            }
-        }
+        setContent { MaterialTheme { TimeSheetScreen() } }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimeSheetScreen() {
     var yearMonth by remember { mutableStateOf(YearMonth.now()) }
-    val employees = remember { mutableStateListOf(Employee("Janis Berzins"), Employee("Anna Ozola")) }
-    var selectedEmp by remember { mutableStateOf(0) }
+    val employees = remember { mutableStateListOf(Employee(1, "Janis Berzins"), Employee(2, "Anna Ozola")) }
+    var selected by remember { mutableStateOf(0) }
+    var nextId by remember { mutableStateOf(3) }
 
-    val daysInMonth = yearMonth.lengthOfMonth()
-    val today = LocalDate.now()
-
-    Column(Modifier.fillMaxSize().padding(8.dp).verticalScroll(rememberScrollState())) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Button(onClick = { yearMonth = yearMonth.minusMonths(1) }) { Text("<") }
-            Text("${yearMonth.month.name} ${yearMonth.year}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Button(onClick = { yearMonth = yearMonth.plusMonths(1) }) { Text(">") }
+    Scaffold(
+        topBar = {
+            TopAppBar(title = { Text("${yearMonth.month.name} ${yearMonth.year}") },
+                navigationIcon = { Button(onClick = { yearMonth = yearMonth.minusMonths(1) }) { Text("<") } },
+                actions = { Button(onClick = { yearMonth = yearMonth.plusMonths(1) }) { Text(">") } }
+            )
         }
-
-        Spacer(Modifier.height(8.dp))
-
-        Row {
-            employees.forEachIndexed { i, emp ->
-                FilterChip(selected = i == selectedEmp, onClick = { selectedEmp = i }, label = { Text(emp.name) }, modifier = Modifier.padding(end=4.dp))
-            }
-            Button(onClick = { employees.add(Employee("Darbinieks ${employees.size+1}")) }) { Text("+") }
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        // Editable name
-        if (employees.isNotEmpty()) {
-            OutlinedTextField(value = employees[selectedEmp].name, onValueChange = { employees[selectedEmp] = employees[selectedEmp].copy(name = it) }, label = { Text("Vārds Uzvārds") }, modifier = Modifier.fillMaxWidth())
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        // Header
-        Row(Modifier.horizontalScroll(rememberScrollState())) {
-            Box(Modifier.width(50.dp)) { Text("Diena", fontWeight = FontWeight.Bold) }
-            for (d in 1..daysInMonth) {
-                val date = yearMonth.atDay(d)
-                val isWeekend = date.dayOfWeek.value >= 6
-                Box(Modifier.width(40.dp).background(if(isWeekend) Color(0xFFFFCDD2) else Color.Transparent).padding(2.dp)) {
-                    Text("$d", fontWeight = FontWeight.Bold, color = if(isWeekend) Color.Red else Color.Black)
+    ) { pad ->
+        Column(Modifier.fillMaxSize().padding(pad).padding(12.dp)) {
+            Row {
+                employees.forEachIndexed { idx, emp ->
+                    FilterChip(selected = idx == selected, onClick = { selected = idx }, label = { Text(emp.name) }, modifier = Modifier.padding(end=4.dp))
                 }
+                SmallFloatingActionButton(onClick = { employees.add(Employee(nextId++, "Jauns")); selected = employees.lastIndex }) { Text("+") }
             }
-            Box(Modifier.width(60.dp)) { Text("Sum", fontWeight = FontWeight.Bold) }
-        }
-        Divider()
 
-        // Current employee row
-        if (employees.isNotEmpty()) {
-            val emp = employees[selectedEmp]
-            Row(Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 4.dp)) {
-                Box(Modifier.width(50.dp)) { Text("Stundas") }
-                var sum = 0.0
-                for (d in 1..daysInMonth) {
-                    val v = emp.hours[d]?: ""
-                    if (v.toDoubleOrNull()!= null) sum += v.toDouble()
-                    OutlinedTextField(
-                        value = v,
-                        onValueChange = { emp.hours[d] = it },
-                        modifier = Modifier.width(40.dp).height(52.dp).padding(1.dp),
-                        singleLine = true
-                    )
+            if (employees.isNotEmpty() && selected in employees.indices) {
+                val emp = employees[selected]
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(value = emp.name, onValueChange = { emp.name = it }, label = { Text("Vārds Uzvārds") }, modifier = Modifier.weight(1f))
+                    IconButton(onClick = { employees.removeAt(selected); selected = 0.coerceAtLeast(employees.size-1) }) { Text("DZĒST", color = Color.Red) }
                 }
-                Box(Modifier.width(60.dp).padding(start=4.dp)) { Text("%.1f".format(sum), fontWeight = FontWeight.Bold) }
+
+                Spacer(Modifier.height(8.dp))
+                LazyColumn(Modifier.weight(1f)) {
+                    stickyHeader {
+                        Row(Modifier.fillMaxWidth().background(Color(0xFFE0E0E0)).padding(8.dp)) {
+                            Text("Diena", Modifier.width(70.dp), fontWeight = FontWeight.Bold)
+                            Text("Diena h", Modifier.width(85.dp), fontWeight = FontWeight.Bold)
+                            Text("Nakts h", Modifier.width(85.dp), fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    val daysInMonth = yearMonth.lengthOfMonth()
+                    items((1..daysInMonth).toList()) { d ->
+                        val date = yearMonth.atDay(d)
+                        val isWeekend = date.dayOfWeek.value >= 6
+                        val dh = emp.days.getOrPut(d) { DayHours() }
+                        Row(
+                            Modifier.fillMaxWidth().background(if(isWeekend) Color(0xFFFFEBEE) else Color.White).padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("${d}. ${date.dayOfWeek.name.take(3)}", Modifier.width(70.dp), color = if(isWeekend) Color.Red else Color.Black, fontWeight = FontWeight.Bold)
+                            OutlinedTextField(value = dh.day, onValueChange = { emp.days[d] = dh.copy(day = it) }, Modifier.width(80.dp).padding(end=4.dp), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
+                            OutlinedTextField(value = dh.night, onValueChange = { emp.days[d] = dh.copy(night = it) }, Modifier.width(80.dp), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
+                        }
+                    }
+                }
+                val totalD = emp.days.values.mapNotNull { it.day.toDoubleOrNull() }.sum()
+                val totalN = emp.days.values.mapNotNull { it.night.toDoubleOrNull() }.sum()
+                Text("Kopā: $totalD + $totalN = ${totalD+totalN} h", fontWeight = FontWeight.Bold, modifier = Modifier.padding(8.dp))
             }
         }
-
-        Spacer(Modifier.height(16.dp))
-        Text("Instrukcija: Raksti 8, 8.5, B - slimiba, A - atvalinajums. Weekends sarkani.", style = MaterialTheme.typography.bodySmall)
-        Spacer(Modifier.height(8.dp))
-        Button(onClick = { /* te bus PDF exports */ }, modifier = Modifier.fillMaxWidth()) { Text("Eksportēt uz PDF (nakamais solis)") }
     }
 }
