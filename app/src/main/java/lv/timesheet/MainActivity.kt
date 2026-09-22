@@ -203,4 +203,4 @@ fun App() {
                 val kopaBruto = baseP + virsP + naktsP + premijaNorma + premijaVirs
                 val vsaoi = kopaBruto * 0.105
                 val atvApg = apgCount * 250.0
-                val apliekamais = max(0.0, kopaBruto - vsaoi - neapl - atvApg) 
+                val apliekamais = max(0.0, kopaBruto - vsaoi - neapl - atvApg))
