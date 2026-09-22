@@ -174,3 +174,170 @@ fun App(){
         drawerContent = {
             ModalDrawerSheet{
                 Text("IZVELE", modifier=Modifier.padding(16.dp), fontWeight=FontWeight.Bold)
+                NavigationDrawerItem(label={Text("Darba tabula")}, selected=screen==Screen.TABLE, onClick={screen=Screen.TABLE})
+                NavigationDrawerItem(label={Text("Menesa normas (manual)")}, selected=screen==Screen.NORMS, onClick={screen=Screen.NORMS})
+                NavigationDrawerItem(label={Text("Darbinieks - alga, apgadajamie")}, selected=screen==Screen.PROFILE, onClick={screen=Screen.PROFILE})
+                NavigationDrawerItem(label={Text("Svetku dienas - rediget")}, selected=screen==Screen.HOLIDAYS, onClick={screen=Screen.HOLIDAYS})
+            }
+        }
+    ){
+        Scaffold(
+            topBar = {
+                TopAppBar(title={Text(
+                    when(screen){
+                        Screen.TABLE -> "${yearMonth.month} ${yearMonth.year} | Norma $normHours h"
+                        Screen.NORMS -> "Menesa normas"
+                        Screen.PROFILE -> "Darbinieka dati"
+                        Screen.HOLIDAYS -> "Svetku dienas"
+                    }
+                )},
+                    navigationIcon = {
+                        // menu burger
+                        Icon(Icons.Default.Menu, contentDescription=null)
+                    },
+                    actions = {
+                        if(screen==Screen.TABLE){
+                            Button(onClick={ yearMonth=yearMonth.minusMonths(1) }){Text("<")}
+                            Spacer(Modifier.width(4.dp))
+                            Button(onClick={ yearMonth=yearMonth.plusMonths(1) }){Text(">")}
+                        }
+                    }
+                )
+            }
+        ){ pad->
+            Column(Modifier.fillMaxSize().padding(pad).padding(12.dp)){
+                when(screen){
+                    Screen.TABLE -> {
+                        // выбор сотрудника
+                        Row{
+                            employees.forEachIndexed{ idx, emp-> FilterChip(selected=idx==selected, onClick={selected=idx}, label={Text(emp.name)}, modifier=Modifier.padding(end=4.dp)) }
+                            SmallFloatingActionButton(onClick={ val ne=Employee(nextId++,"Jauns"); employees.add(ne); selected=employees.lastIndex; saveEmployees(ctx,employees) }){Text("+")}
+                        }
+                        if(employees.isNotEmpty()){
+                            val emp = employees[selected]
+                            val monthData = emp.getMonth(monthKey)
+                            Row(verticalAlignment=Alignment.CenterVertically){
+                                OutlinedTextField(value=emp.name, onValueChange={ emp.name=it; saveEmployees(ctx,employees) }, label={Text("Vards Uzvards")}, modifier=Modifier.weight(1f))
+                                Spacer(Modifier.width(8.dp))
+                                Button(onClick={ employees.removeAt(selected); selected=0; saveEmployees(ctx,employees) }, colors=ButtonDefaults.buttonColors(containerColor=Color(0xFFFFCDD2))){Text("DZEST")}
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            LazyColumn(Modifier.weight(1f)){
+                                item{
+                                    Row(Modifier.fillMaxWidth().background(Color(0xFFE0E0E0)).padding(8.dp)){
+                                        Text("Diena",Modifier.width(70.dp), fontWeight=FontWeight.Bold)
+                                        Text("Diena",Modifier.width(85.dp), fontWeight=FontWeight.Bold)
+                                        Text("Nakti",Modifier.width(85.dp), fontWeight=FontWeight.Bold)
+                                    }
+                                }
+                                items(yearMonth.lengthOfMonth()){ idx->
+                                    val d=idx+1
+                                    val date = yearMonth.atDay(d)
+                                    val dh = monthData.getOrPut(d){ DayHours() }
+                                    val isWeekend = date.dayOfWeek.value>=6
+                                    val bg = if(isWeekend) Color(0xFFFFEBEE) else Color.White
+                                    Row(Modifier.fillMaxWidth().background(bg).padding(vertical=4.dp), verticalAlignment=Alignment.CenterVertically){
+                                        Text("$d. ${lvShort(date.dayOfWeek)}", Modifier.width(70.dp), fontWeight=FontWeight.Bold, color=if(isWeekend) Color.Red else Color.Black)
+                                        OutlinedTextField(value=dh.day, onValueChange={ dh.day=it; saveEmployees(ctx,employees) }, Modifier.width(80.dp).padding(end=4.dp), keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number), singleLine=true)
+                                        OutlinedTextField(value=dh.night, onValueChange={ dh.night=it; saveEmployees(ctx,employees) }, Modifier.width(80.dp), keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number), singleLine=true)
+                                    }
+                                }
+                            }
+                            val totalD = monthData.values.mapNotNull{ it.day.toDoubleOrNull() }.sum()
+                            val totalN = monthData.values.mapNotNull{ it.night.toDoubleOrNull() }.sum()
+                            val virs = (totalD - normHours).coerceAtLeast(0.0)
+                            Card(Modifier.fillMaxWidth().padding(top=8.dp), colors=CardDefaults.cardColors(containerColor=Color(0xFFE8F5E9))){
+                                Column(Modifier.padding(12.dp)){
+                                    Text("Dienas: $totalD h / Norma $normHours h", fontWeight=FontWeight.Bold)
+                                    if(virs>0) Text("VIRSSTUNDAS (tikai dienas): $virs h", color=Color.Red, fontWeight=FontWeight.Bold)
+                                    else Text("Lidz normai: ${(normHours-totalD).coerceAtLeast(0.0)} h")
+                                    Text("Nakts: $totalN h (atseviski, neietilpst norma)", color=Color(0xFFBF360C))
+                                }
+                            }
+                            Button(onClick={}, Modifier.fillMaxWidth().padding(top=8.dp)){ Text("APREKINAT ALGU - nakamais solis") }
+                        }
+                    }
+                    Screen.NORMS -> {
+                        Text("Sheit vari ievadit normu katram menesim manuali. Ja neievadisi, izmantos noklusejuma.", style=MaterialTheme.typography.bodyMedium)
+                        Spacer(Modifier.height(12.dp))
+                        var editMonth by remember { mutableStateOf(YearMonth.now()) }
+                        Row(verticalAlignment=Alignment.CenterVertically){
+                            Button(onClick={ editMonth=editMonth.minusMonths(1) }){Text("<")}
+                            Text("${editMonth.year}-${editMonth.monthValue}", modifier=Modifier.padding(horizontal=12.dp), fontWeight=FontWeight.Bold)
+                            Button(onClick={ editMonth=editMonth.plusMonths(1) }){Text(">")}
+                        }
+                        Spacer(Modifier.height(12.dp))
+                        val key = "${editMonth.year}-${editMonth.monthValue}"
+                        var value by remember(key) { mutableStateOf(norms[key]?: "") }
+                        OutlinedTextField(value=value, onValueChange={ value=it }, label={Text("Norma stundas $key")}, keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number), modifier=Modifier.fillMaxWidth())
+                        Spacer(Modifier.height(8.dp))
+                        Button(onClick={
+                            norms[key]=value
+                            saveNorms(ctx, norms)
+                        }, modifier=Modifier.fillMaxWidth()){ Text("SAGLABAT NORMU") }
+                        Spacer(Modifier.height(16.dp))
+                        Text("Saglabatas normas:", fontWeight=FontWeight.Bold)
+                        LazyColumn{
+                            items(norms.keys.toList().sorted().size){ i->
+                                val k = norms.keys.toList().sorted()[i]
+                                Row(Modifier.fillMaxWidth().padding(vertical=4.dp), horizontalArrangement=Arrangement.SpaceBetween){
+                                    Text("$k : ${norms[k]} h")
+                                    TextButton(onClick={ norms.remove(k); saveNorms(ctx,norms) }){Text("Dzest", color=Color.Red)}
+                                }
+                            }
+                        }
+                    }
+                    Screen.PROFILE -> {
+                        if(employees.isEmpty()){ Text("Nav darbinieku") }
+                        else {
+                            val emp = employees[selected]
+                            Text("Izveletais: ${emp.name}", fontWeight=FontWeight.Bold)
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedTextField(value=emp.monthlySalary, onValueChange={ emp.monthlySalary=it; saveEmployees(ctx,employees) }, label={Text("Menesa oklads EUR (bruto)")}, keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number), modifier=Modifier.fillMaxWidth())
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedTextField(value=emp.dependents, onValueChange={ emp.dependents=it; saveEmployees(ctx,employees) }, label={Text("Apgadajamo skaits")}, keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number), modifier=Modifier.fillMaxWidth())
+                            Spacer(Modifier.height(12.dp))
+                            Card(Modifier.fillMaxWidth(), colors=CardDefaults.cardColors(containerColor=Color(0xFFFFF3E0))){
+                                Column(Modifier.padding(12.dp)){
+                                    Text("Ka rekinas alga:", fontWeight=FontWeight.Bold)
+                                    Text("1. Stundas likme = oklads / norma")
+                                    Text("2. Dienas virsstundas = (dienas - norma) * likme * 2.0")
+                                    Text("3. Nakts piemaksa atseviski")
+                                    Text("4. Apgadajamie ietekme NIN atlaidi")
+                                }
+                            }
+                        }
+                    }
+                    Screen.HOLIDAYS -> {
+                        Text("Sheit vari labot svetku un saisinatas dienas. Formats: YYYY-MM-DD", style=MaterialTheme.typography.bodySmall)
+                        Spacer(Modifier.height(8.dp))
+                        var newDate by remember { mutableStateOf("") }
+                        var newName by remember { mutableStateOf("") }
+                        Row{
+                            OutlinedTextField(value=newDate, onValueChange={newDate=it}, label={Text("2026-12-24")}, modifier=Modifier.weight(1f))
+                            Spacer(Modifier.width(4.dp))
+                            OutlinedTextField(value=newName, onValueChange={newName=it}, label={Text("Nosaukums")}, modifier=Modifier.weight(1f))
+                        }
+                        Button(onClick={
+                            if(newDate.isNotBlank()){
+                                holidays[newDate]=newName.ifBlank { "Svetki" }
+                                saveHolidays(ctx, holidays)
+                                newDate=""; newName=""
+                            }
+                        }, modifier=Modifier.fillMaxWidth().padding(top=4.dp)){ Text("PIEVIENOT / LABOT") }
+                        Spacer(Modifier.height(12.dp))
+                        LazyColumn(Modifier.weight(1f)){
+                            items(holidays.keys.toList().sorted().size){ i->
+                                val k = holidays.keys.toList().sorted()[i]
+                                Row(Modifier.fillMaxWidth().padding(vertical=4.dp), horizontalArrangement=Arrangement.SpaceBetween, verticalAlignment=Alignment.CenterVertically){
+                                    Column{ Text(k, fontWeight=FontWeight.Bold); Text(holidays[k]!!, style=MaterialTheme.typography.labelMedium) }
+                                    TextButton(onClick={ holidays.remove(k); saveHolidays(ctx,holidays) }){Text("Dzest", color=Color.Red)}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
