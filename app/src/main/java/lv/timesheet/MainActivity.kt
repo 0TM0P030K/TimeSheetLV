@@ -22,7 +22,15 @@ import kotlin.math.max
 import kotlin.math.min
 
 fun sDay(d: DayOfWeek):String{
- return when(d){DayOfWeek.MONDAY->"Pr" DayOfWeek.TUESDAY->"Ot" DayOfWeek.WEDNESDAY->"Tr" DayOfWeek.THURSDAY->"Ce" DayOfWeek.FRIDAY->"Pk" DayOfWeek.SATURDAY->"Se" else->"Sv"}
+ return when(d){
+  DayOfWeek.MONDAY->"Pr"
+  DayOfWeek.TUESDAY->"Ot"
+  DayOfWeek.WEDNESDAY->"Tr"
+  DayOfWeek.THURSDAY->"Ce"
+  DayOfWeek.FRIDAY->"Pk"
+  DayOfWeek.SATURDAY->"Se"
+  else->"Sv"
+ }
 }
 fun loadS(c:Context,k:String,def:String):String{ return c.getSharedPreferences("a",0).getString(k,def)?:def }
 fun saveS(c:Context,k:String,v:String){ c.getSharedPreferences("a",0).edit().putString(k,v).apply() }
