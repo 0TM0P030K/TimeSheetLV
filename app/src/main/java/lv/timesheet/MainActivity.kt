@@ -151,3 +151,4 @@ fun App(){
                 val virsP = virs * likme * 2.0
                 val naktsP = totalN * likme / 2.0
                 val pPerc = premStr.toDoubleOrNull()?:
+            } 
