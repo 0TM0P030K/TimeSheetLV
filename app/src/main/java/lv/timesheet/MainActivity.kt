@@ -22,6 +22,39 @@ import java.time.DayOfWeek
 import java.time.YearMonth
 import kotlin.math.max
 
+// ---- HELPERS ВВЕРХУ, ЧТОБЫ НЕ БЫЛО Unresolved ----
+fun shortDay(d: DayOfWeek): String {
+    return when(d){
+        DayOfWeek.MONDAY->"Pr"; DayOfWeek.TUESDAY->"Ot"; DayOfWeek.WEDNESDAY->"Tr"
+        DayOfWeek.THURSDAY->"Ce"; DayOfWeek.FRIDAY->"Pk"; DayOfWeek.SATURDAY->"Se"; else->"Sv"
+    }
+}
+fun loadNorm(c: Context, k: String): String { return c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).getString("NORM_$k","168")?: "168" }
+fun saveNorm(c: Context, k: String, v: String){ c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).edit().putString("NORM_$k",v).apply() }
+fun loadName(c: Context): String { return c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).getString("NAME","Jurijs")?: "Jurijs" }
+fun saveName(c: Context, v: String){ c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).edit().putString("NAME",v).apply() }
+fun loadOklad(c: Context): String { return c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).getString("OKLAD","")?: "" }
+fun saveOklad(c: Context, v: String){ c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).edit().putString("OKLAD",v).apply() }
+fun loadApg(c: Context): String { return c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).getString("APG","0")?: "0" }
+fun saveApg(c: Context, v: String){ c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).edit().putString("APG",v).apply() }
+fun loadPrem(c: Context, k: String): String { return c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).getString("PREM_$k","")?: "" }
+fun savePrem(c: Context, k: String, v: String){ c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).edit().putString("PREM_$k",v).apply() }
+fun loadMap(c: Context, key: String): Map<String,String> {
+    val s = c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).getString(key,null)?: return emptyMap()
+    return try{
+        val o = JSONObject(s)
+        val m = mutableMapOf<String,String>()
+        val keys = o.keys()
+        while(keys.hasNext()){ val kk = keys.next(); m[kk]=o.getString(kk) }
+        m
+    }catch(_:Exception){ emptyMap() }
+}
+fun saveMap(c: Context, key: String, map: Map<String,String>){
+    val o = JSONObject()
+    for(entry in map){ o.put(entry.key, entry.value) }
+    c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).edit().putString(key,o.toString()).apply()
+}
+
 class MainActivity : ComponentActivity(){
     override fun onCreate(s:Bundle?){
         super.onCreate(s)
@@ -36,7 +69,7 @@ fun App(){
     var yearMonth by remember{ mutableStateOf(YearMonth.now()) }
     val monthKey = "${yearMonth.year}-${yearMonth.monthValue}"
     var normStr by remember(monthKey){ mutableStateOf(loadNorm(ctx, monthKey)) }
-    val norm = normStr.toIntOrNull() ?: 168
+    val norm = normStr.toIntOrNull()?: 168
     var name by remember{ mutableStateOf(loadName(ctx)) }
     var okladStr by remember{ mutableStateOf(loadOklad(ctx)) }
     var apgStr by remember{ mutableStateOf(loadApg(ctx)) }
@@ -76,10 +109,10 @@ fun App(){
                 val dow = yearMonth.atDay(d).dayOfWeek
                 val isWeekend = dow==DayOfWeek.SATURDAY || dow==DayOfWeek.SUNDAY
                 val bg = if(isWeekend) Color(0xFFFFEBEE) else Color.White
-                val dayVal = days[d.toString()] ?: ""
-                val nightVal = nights[d.toString()] ?: ""
+                val dayVal = days[d.toString()]?: ""
+                val nightVal = nights[d.toString()]?: ""
                 Row(Modifier.fillMaxWidth().background(bg).padding(vertical=2.dp)){
-                    Text("$d ${short(dow)}", Modifier.width(60.dp), fontWeight=FontWeight.Bold)
+                    Text("$d ${shortDay(dow)}", Modifier.width(60.dp), fontWeight=FontWeight.Bold)
                     OutlinedTextField(
                         value=dayVal,
                         onValueChange={v-> val m=days.toMutableMap(); m[d.toString()]=v; days=m; saveMap(ctx,"DAYS_$monthKey",m)},
@@ -96,9 +129,52 @@ fun App(){
                     )
                 }
             }
-            val totalD = days.values.mapNotNull{it.toDoubleOrNull()}.sum()
-            val totalN = nights.values.mapNotNull{it.toDoubleOrNull()}.sum()
+            val totalD = days.values.mapNotNull{ s-> s.toDoubleOrNull() }.sum()
+            val totalN = nights.values.mapNotNull{ s-> s.toDoubleOrNull() }.sum()
             val virs = max(0.0, totalD - norm)
             Card(Modifier.fillMaxWidth().padding(top=8.dp), colors=CardDefaults.cardColors(containerColor=Color(0xFFE8F5E9))){
                 Column(Modifier.padding(8.dp)){
                     Text("Dienas: $totalD / Norma $norm", fontWeight=FontWeight.Bold)
+                    if(virs>0) Text("VIRSSTUNDAS: $virs h", color=Color.Red, fontWeight=FontWeight.Bold)
+                    Text("Nakts: $totalN h (atseviski)")
+                }
+            }
+            Button(onClick={showCalc=true}, Modifier.fillMaxWidth().padding(top=8.dp)){Text("APREKINAT ALGU")}
+            if(showCalc){
+                val oklad = okladStr.toDoubleOrNull()?:0.0
+                val likme = if(norm>0) oklad/norm else 0.0
+                val apg = apgStr.toIntOrNull()?:0
+                val baseP = minOf(totalD, norm.toDouble())*likme
+                val virsP = virs*likme*2.0
+                val naktsP = totalN*likme/2.0
+                val pPerc = premStr.toDoubleOrNull()?:0.0
+                val prem1 = likme*totalD*pPerc/100.0
+                val prem2 = virsP*pPerc/100.0
+                val bruto = baseP+virsP+naktsP+prem1+prem2
+                val vsaoi = bruto*0.105
+                val atv = apg*250.0
+                val neapl = 550.0
+                val apliek = max(0.0, bruto-vsaoi-neapl-atv)
+                val iin = apliek*0.255
+                val neto = bruto-vsaoi-iin
+                AlertDialog(onDismissRequest={showCalc=false}, title={Text("Alga $monthKey")},
+                    text={
+                        Column(Modifier.verticalScroll(rememberScrollState())){
+                            Text("Likme: ${"%.4f".format(likme)} EUR/h", fontWeight=FontWeight.Bold)
+                            Text("1. Dienas lidz normai: ${"%.2f".format(baseP)}")
+                            Text("2. Virstundas $virs h x2: ${"%.2f".format(virsP)}")
+                            Text("3. Nakts $totalN h /2: ${"%.2f".format(naktsP)}")
+                            Text("4. Premija 1 $pPerc%: ${"%.2f".format(prem1)}")
+                            Text("5. Premija 2 $pPerc% no virst: ${"%.2f".format(prem2)}")
+                            Divider(Modifier.padding(vertical=4.dp))
+                            Text("BRUTO: ${"%.2f".format(bruto)}", fontWeight=FontWeight.Bold)
+                            Text("VSAOI 10.5%: -${"%.2f".format(vsaoi)}")
+                            Text("IIN 25.5% no ${"%.2f".format(apliek)}: -${"%.2f".format(iin)}")
+                            Text("NETO: ${"%.2f".format(neto)}", fontWeight=FontWeight.Bold, color=Color(0xFF2E7D32))
+                        }
+                    }, confirmButton={Button(onClick={showCalc=false}){Text("OK")}}
+                )
+            }
+        }
+    }
+}
