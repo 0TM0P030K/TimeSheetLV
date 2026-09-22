@@ -8,14 +8,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import org.json.JSONObject
@@ -91,6 +89,73 @@ fun App(){
         Column(Modifier.fillMaxSize().padding(pad).padding(8.dp).verticalScroll(rememberScrollState())){
             OutlinedTextField(value=name, onValueChange={name=it; saveName(ctx,it)}, label={Text("Vards Uzvards")}, modifier=Modifier.fillMaxWidth())
             Row{
-                OutlinedTextField(value=okladStr, onValueChange={okladStr=it; saveOklad(ctx,it)}, label={Text("Oklads EUR")}, modifier=Modifier.weight(1f), keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
+                OutlinedTextField(value=okladStr, onValueChange={okladStr=it; saveOklad(ctx,it)}, label={Text("Oklads EUR")}, modifier=Modifier.weight(1f))
                 Spacer(Modifier.width(4.dp))
-                OutlinedTextField(value=apgStr, onValueChange={apgStr=it; saveApg(ctx,it)}, label={Text("Apg.")}, modifier=Modifier.width(90.dp), keyboardOptions=KeyboardOptions(keyboardType
+                OutlinedTextField(value=apgStr, onValueChange={apgStr=it; saveApg(ctx,it)}, label={Text("Apg.")}, modifier=Modifier.width(90.dp))
+            }
+            Row{
+                OutlinedTextField(value=normStr, onValueChange={normStr=it; saveNorm(ctx,monthKey,it)}, label={Text("Norma h")}, modifier=Modifier.weight(1f))
+                Spacer(Modifier.width(4.dp))
+                OutlinedTextField(value=premStr, onValueChange={premStr=it; savePrem(ctx,monthKey,it)}, label={Text("Premija %")}, modifier=Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth().background(Color(0xFFEEEEEE)).padding(6.dp)){
+                Text("Diena",Modifier.width(60.dp), fontWeight=FontWeight.Bold)
+                Text("Diena",Modifier.width(80.dp), fontWeight=FontWeight.Bold)
+                Text("Nakti",Modifier.width(80.dp), fontWeight=FontWeight.Bold)
+            }
+            for(d in 1..yearMonth.lengthOfMonth()){
+                val dow = yearMonth.atDay(d).dayOfWeek
+                val isWeekend = dow==DayOfWeek.SATURDAY || dow==DayOfWeek.SUNDAY
+                val bg = if(isWeekend) Color(0xFFFFEBEE) else Color.White
+                val dayVal = days[d.toString()]?: ""
+                val nightVal = nights[d.toString()]?: ""
+                Row(Modifier.fillMaxWidth().background(bg).padding(vertical=2.dp)){
+                    Text(d.toString() + " " + shortDay(dow), Modifier.width(60.dp), fontWeight=FontWeight.Bold)
+                    OutlinedTextField(value=dayVal, onValueChange={v-> val m=days.toMutableMap(); m[d.toString()]=v; days=m; saveMap(ctx,"DAYS_" + monthKey,m)}, modifier=Modifier.width(75.dp).padding(end=4.dp), singleLine=true)
+                    OutlinedTextField(value=nightVal, onValueChange={v-> val m=nights.toMutableMap(); m[d.toString()]=v; nights=m; saveMap(ctx,"NIGHTS_" + monthKey,m)}, modifier=Modifier.width(75.dp), singleLine=true)
+                }
+            }
+            val totalD = days.values.mapNotNull{ s-> s.toDoubleOrNull() }.sum()
+            val totalN = nights.values.mapNotNull{ s-> s.toDoubleOrNull() }.sum()
+            val virs = max(0.0, totalD - norm)
+            val dienasLidzNormai = min(totalD, norm.toDouble())
+
+            Card(Modifier.fillMaxWidth().padding(top=8.dp), colors=CardDefaults.cardColors(containerColor=Color(0xFFE8F5E9))){
+                Column(Modifier.padding(8.dp)){
+                    Text("Stundās: " + totalD.toString() + " / Norma " + norm.toString(), fontWeight=FontWeight.Bold)
+                    if(virs>0) Text("VIRSSTUNDAS: " + virs.toString() + " h", color=Color.Red, fontWeight=FontWeight.Bold)
+                    Text("Nakts: " + totalN.toString() + " h")
+                }
+            }
+            Button(onClick={showCalc=true}, Modifier.fillMaxWidth().padding(top=8.dp)){Text("APREKINAT ALGU")}
+            if(showCalc){
+                val oklad = okladStr.toDoubleOrNull()?:0.0
+                val likme = if(norm>0) oklad/norm else 0.0
+                val baseP = dienasLidzNormai * likme
+                val virsP = virs * likme * 2.0
+                val naktsP = totalN * likme / 2.0
+                val pPerc = premStr.toDoubleOrNull()?:0.0
+                val premija = baseP * pPerc / 100.0
+                val kopa = baseP + virsP + naktsP + premija
+                Dialog(onDismissRequest={showCalc=false}){
+                    Card(Modifier.fillMaxWidth().padding(16.dp)){
+                        Column(Modifier.padding(16.dp)){
+                            Text("Aprekins", fontWeight=FontWeight.Bold)
+                            Spacer(Modifier.height(8.dp))
+                            Text("Likme: %.2f EUR/h".format(likme))
+                            Text("Dienas: %.2f h = %.2f EUR".format(dienasLidzNormai, baseP))
+                            Text("Virs: %.2f h = %.2f EUR".format(virs, virsP))
+                            Text("Nakts: %.2f h = %.2f EUR".format(totalN, naktsP))
+                            Text("Premija %.2f %% = %.2f EUR".format(pPerc, premija))
+                            Divider(Modifier.padding(vertical=8.dp))
+                            Text("KOPA BRUTO: %.2f EUR".format(kopa), fontWeight=FontWeight.Bold)
+                            Spacer(Modifier.height(12.dp))
+                            Button(onClick={showCalc=false}, Modifier.fillMaxWidth()){Text("Aizvert")}
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
