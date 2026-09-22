@@ -99,7 +99,6 @@ fun App(){
                 Spacer(Modifier.width(4.dp))
                 OutlinedTextField(value=premStr, onValueChange={premStr=it; savePrem(ctx,monthKey,it)}, label={Text("Premija %")}, modifier=Modifier.weight(1f), keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
             }
-            Text("Premija % viena abam", style=MaterialTheme.typography.labelSmall)
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth().background(Color(0xFFEEEEEE)).padding(6.dp)){
                 Text("Diena",Modifier.width(60.dp), fontWeight=FontWeight.Bold)
@@ -137,7 +136,7 @@ fun App(){
 
             Card(Modifier.fillMaxWidth().padding(top=8.dp), colors=CardDefaults.cardColors(containerColor=Color(0xFFE8F5E9))){
                 Column(Modifier.padding(8.dp)){
-                    Text("Dienas: $totalD / Norma $norm (lidz normai: $dienasLidzNormai)", fontWeight=FontWeight.Bold)
+                    Text("Dienas: $totalD / Norma $norm", fontWeight=FontWeight.Bold)
                     if(virs>0) Text("VIRSSTUNDAS: $virs h", color=Color.Red, fontWeight=FontWeight.Bold)
                     Text("Nakts: $totalN h")
                 }
@@ -151,7 +150,6 @@ fun App(){
                 val virsP = virs * likme * 2.0
                 val naktsP = totalN * likme / 2.0
                 val pPerc = premStr.toDoubleOrNull()?:0.0
-                // ИСПРАВЛЕНО: первая премия только с часов до нормы
                 val prem1 = likme * dienasLidzNormai * pPerc / 100.0
                 val prem2 = virsP * pPerc / 100.0
                 val bruto = baseP + virsP + naktsP + prem1 + prem2
@@ -166,11 +164,11 @@ fun App(){
                     text={
                         Column(Modifier.verticalScroll(rememberScrollState())){
                             Text("Likme: ${"%.4f".format(likme)} EUR/h", fontWeight=FontWeight.Bold)
-                            Text("1. Dienas lidz normai $dienasLidzNormai h: ${"%.2f".format(baseP)}")
-                            Text("2. Virstundas $virs h x2: ${"%.2f".format(virsP)}")
-                            Text("3. Nakts $totalN h /2: ${"%.2f".format(naktsP)}")
-                            Text("4. Premija 1 $pPerc% no $dienasLidzNormai h: ${"%.2f".format(prem1)}", fontWeight=FontWeight.Bold)
-                            Text("5. Premija 2 $pPerc% no virst: ${"%.2f".format(prem2)}")
+                            Text("1. Casu lidz normai $dienasLidzNormai h: ${"%.2f".format(baseP)}")
+                            Text("2. Pereskrabotka $virs h: ${"%.2f".format(virsP)}")
+                            Text("3. Nocnie casi $totalN h: ${"%.2f".format(naktsP)}")
+                            Text("4. Premija 1: ${"%.2f".format(prem1)}", fontWeight=FontWeight.Bold)
+                            Text("5. Premija 2: ${"%.2f".format(prem2)}")
                             Divider(Modifier.padding(vertical=4.dp))
                             Text("BRUTO: ${"%.2f".format(bruto)}", fontWeight=FontWeight.Bold)
                             Text("VSAOI 10.5%: -${"%.2f".format(vsaoi)}")
@@ -182,4 +180,4 @@ fun App(){
             }
         }
     }
-}
+} 
