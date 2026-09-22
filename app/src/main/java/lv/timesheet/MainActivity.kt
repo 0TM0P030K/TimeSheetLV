@@ -158,7 +158,6 @@ fun App(){
        Divider(Modifier.padding(vertical=8.dp))
        Text("BRUTO "+String.format("%.2f",bruto),fontWeight=FontWeight.Bold)
        Text("VSAOI -"+String.format("%.2f",vsaoi))
-       Text("Apliek "+String.format("%.2f",apliek))
        Text("IIN 25,5% -"+String.format("%.2f",iin))
        Divider(Modifier.padding(vertical=8.dp))
        Text("NETO "+String.format("%.2f",neto),fontWeight=FontWeight.Bold,color=Color(0xFF2E7D32))
