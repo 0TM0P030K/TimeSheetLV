@@ -24,53 +24,26 @@ import kotlin.math.min
 
 fun shortDay(d: DayOfWeek): String {
     return when(d){
-        DayOfWeek.MONDAY->"Pr"
-        DayOfWeek.TUESDAY->"Ot"
-        DayOfWeek.WEDNESDAY->"Tr"
-        DayOfWeek.THURSDAY->"Ce"
-        DayOfWeek.FRIDAY->"Pk"
-        DayOfWeek.SATURDAY->"Se"
-        else->"Sv"
+        DayOfWeek.MONDAY->"Pr"; DayOfWeek.TUESDAY->"Ot"; DayOfWeek.WEDNESDAY->"Tr"
+        DayOfWeek.THURSDAY->"Ce"; DayOfWeek.FRIDAY->"Pk"; DayOfWeek.SATURDAY->"Se"; else->"Sv"
     }
 }
-fun loadS(c: Context, k: String, def: String): String {
-    return c.getSharedPreferences("timesheet", 0).getString(k, def)?: def
-}
-fun saveS(c: Context, k: String, v: String){
-    c.getSharedPreferences("timesheet", 0).edit().putString(k,v).apply()
-}
+fun loadS(c: Context, k: String, def: String): String { return c.getSharedPreferences("timesheet", 0).getString(k, def)?: def }
+fun saveS(c: Context, k: String, v: String){ c.getSharedPreferences("timesheet", 0).edit().putString(k,v).apply() }
 fun loadMap(c: Context, key: String): Map<String,String> {
     val s = c.getSharedPreferences("timesheet", 0).getString(key,null)?: return emptyMap()
     return try{
-        val o = JSONObject(s)
-        val m = mutableMapOf<String,String>()
-        val keys = o.keys()
-        while(keys.hasNext()){
-            val kk = keys.next()
-            m[kk]=o.getString(kk)
-        }
-        m
-    }catch(e:Exception){
-        emptyMap()
-    }
+        val o = JSONObject(s); val m = mutableMapOf<String,String>(); val keys = o.keys()
+        while(keys.hasNext()){ val kk = keys.next(); m[kk]=o.getString(kk) }; m
+    }catch(e:Exception){ emptyMap() }
 }
 fun saveMap(c: Context, key: String, map: Map<String,String>){
-    val o = JSONObject()
-    for(entry in map){
-        o.put(entry.key, entry.value)
-    }
+    val o = JSONObject(); for(entry in map){ o.put(entry.key, entry.value) }
     c.getSharedPreferences("timesheet", 0).edit().putString(key,o.toString()).apply()
 }
 
 class MainActivity : ComponentActivity(){
-    override fun onCreate(s:Bundle?){
-        super.onCreate(s)
-        setContent{
-            MaterialTheme{
-                App()
-            }
-        }
-    }
+    override fun onCreate(s:Bundle?){ super.onCreate(s); setContent{ MaterialTheme{ App() } } }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -103,7 +76,7 @@ fun App(){
             Row{
                 OutlinedTextField(value=okladStr, onValueChange={okladStr=it; saveS(ctx,"OKLAD",it)}, label={Text("Oklads EUR")}, modifier=Modifier.weight(1f))
                 Spacer(Modifier.width(4.dp))
-                OutlinedTextField(value=apgStr, onValueChange={apgStr=it; saveS(ctx,"APG",it)}, label={Text("Apg.")}, modifier=Modifier.width(90.dp))
+                OutlinedTextField(value=apgStr, onValueChange={apgStr=it; saveS(ctx,"APG",it)}, label={Text("Apg.sk.")}, modifier=Modifier.width(90.dp))
             }
             Row{
                 OutlinedTextField(value=normStr, onValueChange={normStr=it; saveS(ctx,"NORM_" + monthKey,it)}, label={Text("Norma h")}, modifier=Modifier.weight(1f))
@@ -118,8 +91,7 @@ fun App(){
             }
             for(d in 1..yearMonth.lengthOfMonth()){
                 val dow = yearMonth.atDay(d).dayOfWeek
-                val isWeekend = dow==DayOfWeek.SATURDAY || dow==DayOfWeek.SUNDAY
-                val bg = if(isWeekend) Color(0xFFFFEBEE) else Color.White
+                val bg = if(dow==DayOfWeek.SATURDAY || dow==DayOfWeek.SUNDAY) Color(0xFFFFEBEE) else Color.White
                 val dayVal = days[d.toString()]?: ""
                 val nightVal = nights[d.toString()]?: ""
                 Row(Modifier.fillMaxWidth().background(bg).padding(vertical=2.dp)){
@@ -136,9 +108,7 @@ fun App(){
             Card(Modifier.fillMaxWidth().padding(top=8.dp), colors=CardDefaults.cardColors(containerColor=Color(0xFFE8F5E9))){
                 Column(Modifier.padding(8.dp)){
                     Text("Stundas: " + totalD.toString() + " / Norma " + norm.toString(), fontWeight=FontWeight.Bold)
-                    if(virs>0){
-                        Text("VIRSSTUNDAS: " + virs.toString() + " h", color=Color.Red, fontWeight=FontWeight.Bold)
-                    }
+                    if(virs>0) Text("VIRSSTUNDAS: " + virs.toString() + " h", color=Color.Red, fontWeight=FontWeight.Bold)
                     Text("Nakts: " + totalN.toString() + " h")
                 }
             }
@@ -147,7 +117,7 @@ fun App(){
             if(showCalc){
                 val oklad = okladStr.toDoubleOrNull()?: 0.0
                 val likme = if(norm>0) oklad / norm.toDouble() else 0.0
-                val apg = apgStr.toIntOrNull()?: 0
+                val apgCount = apgStr.toIntOrNull()?: 0
 
                 val baseP = dienasLidzNormai * likme
                 val virsP = virs * likme * 2.0
@@ -159,33 +129,13 @@ fun App(){
 
                 val kopaBruto = baseP + virsP + naktsP + premijaNorma + premijaVirs
                 val vsaoi = kopaBruto * 0.105
-                val atvApg = apg * 250.0
-                val apliekamais = max(0.0, kopaBruto - vsaoi - atvApg)
+
+                // ПРАВИЛЬНЫЙ РАСЧЕТ IIN 2026
+                val neapliekamais = 550.0
+                val atvApg = apgCount * 250.0
+                val apliekamais = max(0.0, kopaBruto - vsaoi - neapliekamais - atvApg)
                 val iin = apliekamais * 0.255
                 val neto = kopaBruto - vsaoi - iin
 
                 Dialog(onDismissRequest={showCalc=false}){
-                    Card(Modifier.fillMaxWidth().padding(16.dp)){
-                        Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState())){
-                            Text("Aprekins", fontWeight=FontWeight.Bold)
-                            Text("Likme: " + String.format("%.2f", likme) + " EUR/h")
-                            Text("Dienas: " + String.format("%.2f", dienasLidzNormai) + " = " + String.format("%.2f", baseP) + " EUR")
-                            Text("Virs x2: " + String.format("%.2f", virs) + " = " + String.format("%.2f", virsP) + " EUR")
-                            Text("Nakts: " + String.format("%.2f", totalN) + " = " + String.format("%.2f", naktsP) + " EUR")
-                            Text("Premija norma = " + String.format("%.2f", premijaNorma))
-                            Text("Premija virs = " + String.format("%.2f", premijaVirs))
-                            HorizontalDivider(Modifier.padding(vertical=8.dp))
-                            Text("BRUTO: " + String.format("%.2f", kopaBruto) + " EUR", fontWeight=FontWeight.Bold)
-                            Text("VSAOI 10.5: -" + String.format("%.2f", vsaoi))
-                            Text("IIN 25.5: -" + String.format("%.2f", iin))
-                            HorizontalDivider(Modifier.padding(vertical=8.dp))
-                            Text("NETO: " + String.format("%.2f", neto) + " EUR", fontWeight=FontWeight.Bold, color=Color(0xFF2E7D32))
-                            Spacer(Modifier.height(12.dp))
-                            Button(onClick={showCalc=false}, Modifier.fillMaxWidth()){Text("Aizvert")}
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
+                    Card(Modifier.fillMaxWidth().padding(16.dp
