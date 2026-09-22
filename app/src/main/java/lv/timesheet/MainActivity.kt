@@ -142,4 +142,50 @@ fun App(){
                     Text("Nakts: " + totalN.toString() + " h")
                 }
             }
-            Button(onClick={showCalc=true}, Modifier.fillMaxWidth().padding(top=8.dp)){Text("APREKINAT ALGU
+            Button(onClick={showCalc=true}, Modifier.fillMaxWidth().padding(top=8.dp)){Text("APREKINAT ALGU")}
+
+            if(showCalc){
+                val oklad = okladStr.toDoubleOrNull()?: 0.0
+                val likme = if(norm>0) oklad / norm.toDouble() else 0.0
+                val apg = apgStr.toIntOrNull()?: 0
+
+                val baseP = dienasLidzNormai * likme
+                val virsP = virs * likme * 2.0
+                val naktsP = totalN * likme * 0.5
+                val pPerc = premStr.toDoubleOrNull()?: 0.0
+
+                val premijaNorma = baseP * pPerc / 100.0
+                val premijaVirs = virsP * pPerc / 100.0
+
+                val kopaBruto = baseP + virsP + naktsP + premijaNorma + premijaVirs
+                val vsaoi = kopaBruto * 0.105
+                val atvApg = apg * 250.0
+                val apliekamais = max(0.0, kopaBruto - vsaoi - atvApg)
+                val iin = apliekamais * 0.255
+                val neto = kopaBruto - vsaoi - iin
+
+                Dialog(onDismissRequest={showCalc=false}){
+                    Card(Modifier.fillMaxWidth().padding(16.dp)){
+                        Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState())){
+                            Text("Aprekins", fontWeight=FontWeight.Bold)
+                            Text("Likme: " + String.format("%.2f", likme) + " EUR/h")
+                            Text("Dienas: " + String.format("%.2f", dienasLidzNormai) + " = " + String.format("%.2f", baseP) + " EUR")
+                            Text("Virs x2: " + String.format("%.2f", virs) + " = " + String.format("%.2f", virsP) + " EUR")
+                            Text("Nakts: " + String.format("%.2f", totalN) + " = " + String.format("%.2f", naktsP) + " EUR")
+                            Text("Premija norma = " + String.format("%.2f", premijaNorma))
+                            Text("Premija virs = " + String.format("%.2f", premijaVirs))
+                            HorizontalDivider(Modifier.padding(vertical=8.dp))
+                            Text("BRUTO: " + String.format("%.2f", kopaBruto) + " EUR", fontWeight=FontWeight.Bold)
+                            Text("VSAOI 10.5: -" + String.format("%.2f", vsaoi))
+                            Text("IIN 25.5: -" + String.format("%.2f", iin))
+                            HorizontalDivider(Modifier.padding(vertical=8.dp))
+                            Text("NETO: " + String.format("%.2f", neto) + " EUR", fontWeight=FontWeight.Bold, color=Color(0xFF2E7D32))
+                            Spacer(Modifier.height(12.dp))
+                            Button(onClick={showCalc=false}, Modifier.fillMaxWidth()){Text("Aizvert")}
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
