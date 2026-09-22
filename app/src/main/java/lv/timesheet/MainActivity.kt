@@ -200,7 +200,8 @@ fun App() {
                 val premijaNorma = baseP * pPerc / 100.0
                 val premijaVirs = virsP * pPerc / 100.0
 
-                val kopaBruto = baseP + virsP + naktsP + premijaNorma + premijaVirs
-                val vsaoi = kopaBruto * 0.105
-                val atvApg = apgCount * 250.0
-                val apliekamais = max(0.0, kopaBruto - vsaoi - neapl - atvApg)
+                                val bruto = baseP+virsP+naktsP+premNorm+premVirs
+                val vsaoi = bruto*0.105
+                val atv = apgC*250.0
+                val apl = bruto-vsaoi-neapl-atv
+                val apl2 = max(0.0,apl)
