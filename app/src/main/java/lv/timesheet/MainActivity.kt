@@ -30,16 +30,16 @@ fun shortDay(d: DayOfWeek): String {
         DayOfWeek.THURSDAY->"Ce"; DayOfWeek.FRIDAY->"Pk"; DayOfWeek.SATURDAY->"Se"; else->"Sv"
     }
 }
-fun loadNorm(c: Context, k: String): String { return c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).getString("NORM_$k","168")?: "168" }
-fun saveNorm(c: Context, k: String, v: String){ c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).edit().putString("NORM_$k",v).apply() }
+fun loadNorm(c: Context, k: String): String { return c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).getString("NORM_${k}","168")?: "168" }
+fun saveNorm(c: Context, k: String, v: String){ c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).edit().putString("NORM_${k}",v).apply() }
 fun loadName(c: Context): String { return c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).getString("NAME","Jurijs")?: "Jurijs" }
 fun saveName(c: Context, v: String){ c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).edit().putString("NAME",v).apply() }
 fun loadOklad(c: Context): String { return c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).getString("OKLAD","")?: "" }
 fun saveOklad(c: Context, v: String){ c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).edit().putString("OKLAD",v).apply() }
 fun loadApg(c: Context): String { return c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).getString("APG","0")?: "0" }
 fun saveApg(c: Context, v: String){ c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).edit().putString("APG",v).apply() }
-fun loadPrem(c: Context, k: String): String { return c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).getString("PREM_$k","")?: "" }
-fun savePrem(c: Context, k: String, v: String){ c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).edit().putString("PREM_$k",v).apply() }
+fun loadPrem(c: Context, k: String): String { return c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).getString("PREM_${k}","")?: "" }
+fun savePrem(c: Context, k: String, v: String){ c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).edit().putString("PREM_${k}",v).apply() }
 fun loadMap(c: Context, key: String): Map<String,String> {
     val s = c.getSharedPreferences("timesheet", Context.MODE_PRIVATE).getString(key,null)?: return emptyMap()
     return try{
@@ -75,12 +75,12 @@ fun App(){
     var okladStr by remember{ mutableStateOf(loadOklad(ctx)) }
     var apgStr by remember{ mutableStateOf(loadApg(ctx)) }
     var premStr by remember(monthKey){ mutableStateOf(loadPrem(ctx, monthKey)) }
-    var days by remember(monthKey){ mutableStateOf(loadMap(ctx, "DAYS_$monthKey")) }
-    var nights by remember(monthKey){ mutableStateOf(loadMap(ctx, "NIGHTS_$monthKey")) }
+    var days by remember(monthKey){ mutableStateOf(loadMap(ctx, "DAYS_${monthKey}")) }
+    var nights by remember(monthKey){ mutableStateOf(loadMap(ctx, "NIGHTS_${monthKey}")) }
     var showCalc by remember{ mutableStateOf(false) }
 
     Scaffold(topBar={
-        TopAppBar(title={Text("${yearMonth.monthValue}.${yearMonth.year} N:$norm h")},
+        TopAppBar(title={Text("${yearMonth.monthValue}.${yearMonth.year} N:${norm} h")},
             actions={
                 Button(onClick={ yearMonth = yearMonth.minusMonths(1) }){Text("<")}
                 Spacer(Modifier.width(4.dp))
@@ -91,4 +91,11 @@ fun App(){
         Column(Modifier.fillMaxSize().padding(pad).padding(8.dp).verticalScroll(rememberScrollState())){
             OutlinedTextField(value=name, onValueChange={name=it; saveName(ctx,it)}, label={Text("Vards Uzvards")}, modifier=Modifier.fillMaxWidth())
             Row{
-                OutlinedTextField(value=okladStr, onValueChange={okladStr=
+                OutlinedTextField(value=okladStr, onValueChange={okladStr=it; saveOklad(ctx,it)}, label={Text("Oklads EUR")}, modifier=Modifier.weight(1f), keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
+                Spacer(Modifier.width(4.dp))
+                OutlinedTextField(value=apgStr, onValueChange={apgStr=it; saveApg(ctx,it)}, label={Text("Apg.")}, modifier=Modifier.width(90.dp), keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
+            }
+            Row{
+                OutlinedTextField(value=normStr, onValueChange={normStr=it; saveNorm(ctx,monthKey,it)}, label={Text("Norma h")}, modifier=Modifier.weight(1f), keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
+                Spacer(Modifier.width(4.dp))
+                OutlinedTextField(value=premStr, onValueChange={premStr=it; savePrem(ctx,monthKey,it)}, label={Text("Premija %")}, modifier=Modifier.weight(1f), keyboardOptions=
