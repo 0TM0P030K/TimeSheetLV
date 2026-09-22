@@ -3,10 +3,10 @@ package lv.timesheet
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,7 +29,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun TimeSheetScreen() {
     var yearMonth by remember { mutableStateOf(YearMonth.now()) }
@@ -70,7 +70,8 @@ fun TimeSheetScreen() {
                         }
                     }
                     val daysInMonth = yearMonth.lengthOfMonth()
-                    items((1..daysInMonth).toList()) { d ->
+                    items(daysInMonth) { index ->
+                        val d = index + 1
                         val date = yearMonth.atDay(d)
                         val isWeekend = date.dayOfWeek.value >= 6
                         val dh = emp.days.getOrPut(d) { DayHours() }
@@ -90,4 +91,4 @@ fun TimeSheetScreen() {
             }
         }
     }
-}
+} 
