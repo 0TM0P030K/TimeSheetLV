@@ -34,13 +34,8 @@ class Employee(val id: Int, initialName: String) {
 }
 
 fun lvShort(dow: DayOfWeek): String = when(dow){
-    DayOfWeek.MONDAY -> "Pr"
-    DayOfWeek.TUESDAY -> "Ot"
-    DayOfWeek.WEDNESDAY -> "Tr"
-    DayOfWeek.THURSDAY -> "Ce"
-    DayOfWeek.FRIDAY -> "Pk"
-    DayOfWeek.SATURDAY -> "Se"
-    DayOfWeek.SUNDAY -> "Sv"
+    DayOfWeek.MONDAY -> "Pr"; DayOfWeek.TUESDAY -> "Ot"; DayOfWeek.WEDNESDAY -> "Tr"
+    DayOfWeek.THURSDAY -> "Ce"; DayOfWeek.FRIDAY -> "Pk"; DayOfWeek.SATURDAY -> "Se"; DayOfWeek.SUNDAY -> "Sv"
 }
 
 fun getLatvianHolidays(year: Int): Map<LocalDate, String> {
@@ -70,9 +65,7 @@ fun saveAll(context: Context, list: List<Employee>) {
         emp.months.forEach { (monthKey, daysMap) ->
             val daysObj = JSONObject()
             daysMap.forEach { (num, h) ->
-                val o = JSONObject()
-                o.put("d", h.day)
-                o.put("n", h.night)
+                val o = JSONObject(); o.put("d", h.day); o.put("n", h.night)
                 daysObj.put(num.toString(), o)
             }
             monthsObj.put(monthKey, daysObj)
@@ -149,12 +142,22 @@ fun App(){
     var showSalary by remember { mutableStateOf(false) }
 
     val holidays = getLatvianHolidays(yearMonth.year)
+    // Праздники в этом месяце
     val holidaysThisMonth = holidays.filter { it.key.year==yearMonth.year && it.key.monthValue==yearMonth.monthValue }
+    // Сокращенные дни: день перед праздником, если это рабочий день
+    val shortenedDays = holidays.map { it.key.minusDays(1) }
+       .filter {
+            it.year==yearMonth.year && it.monthValue==yearMonth.monthValue
+            && it.dayOfWeek.value<=5
+            &&!holidays.containsKey(it)
+        }.sorted()
+
     val workingDays = (1..yearMonth.lengthOfMonth()).count{
         val d = yearMonth.atDay(it)
         d.dayOfWeek.value<=5 &&!holidays.containsKey(d)
     }
-    val normHours = workingDays * 8
+    // Норма = рабочие дни * 8 - сокращенные * 1
+    val normHours = workingDays * 8 - shortenedDays.size
 
     Scaffold(
         topBar = {
@@ -168,28 +171,29 @@ fun App(){
 
             Card(Modifier.fillMaxWidth(), colors=CardDefaults.cardColors(containerColor=Color(0xFFE3F2FD))){
                 Column(Modifier.padding(10.dp)){
-                    Text("Menesa norma: $normHours h ($workingDays dienas x 8h)", fontWeight=FontWeight.Bold)
+                    Text("Menesa norma: $normHours h", fontWeight=FontWeight.Bold)
+                    Text("($workingDays darba dienas x 8h - ${shortenedDays.size} saisinatas x 1h)", style=MaterialTheme.typography.labelMedium)
                     if(holidaysThisMonth.isNotEmpty()){
-                        Text("Svetku dienas:", fontWeight=FontWeight.Bold, modifier=Modifier.padding(top=4.dp))
-                        holidaysThisMonth.forEach{ (date,name)->
-                            Text("${date.dayOfMonth}.${date.monthValue}. - $name", color=Color(0xFF0D47A1))
+                        Spacer(Modifier.height(4.dp))
+                        Text("Svetku dienas:", fontWeight=FontWeight.Bold)
+                        holidaysThisMonth.forEach{ (date,name)-> Text("${date.dayOfMonth}.${date.monthValue}. - $name", color=Color(0xFF0D47A1)) }
+                    }
+                    if(shortenedDays.isNotEmpty()){
+                        Spacer(Modifier.height(4.dp))
+                        Text("Saisinatas dienas (-1h):", fontWeight=FontWeight.Bold, color=Color(0xFFE65100))
+                        shortenedDays.forEach{ d->
+                            val h = holidays[d.plusDays(1)]
+                            Text("${d.dayOfMonth}.${d.monthValue}. ${lvShort(d.dayOfWeek)} - pirms $h", color=Color(0xFFE65100))
                         }
-                    } else {
-                        Text("Svetku dienas: nav", color=Color.Gray)
                     }
                 }
             }
             Spacer(Modifier.height(8.dp))
 
             Row{
-                employees.forEachIndexed{ idx, emp->
-                    FilterChip(selected=idx==selected, onClick={selected=idx}, label={Text(emp.name)}, modifier=Modifier.padding(end=4.dp))
-                }
+                employees.forEachIndexed{ idx, emp-> FilterChip(selected=idx==selected, onClick={selected=idx}, label={Text(emp.name)}, modifier=Modifier.padding(end=4.dp)) }
                 SmallFloatingActionButton(onClick={
-                    val ne = Employee(nextId++, "Jauns")
-                    employees.add(ne)
-                    selected = employees.lastIndex
-                    saveAll(ctx, employees)
+                    val ne = Employee(nextId++, "Jauns"); employees.add(ne); selected = employees.lastIndex; saveAll(ctx, employees)
                 }){Text("+")}
             }
 
@@ -200,9 +204,7 @@ fun App(){
                 Row(verticalAlignment=Alignment.CenterVertically){
                     OutlinedTextField(value=emp.name, onValueChange={ emp.name=it; saveAll(ctx,employees) }, label={Text("Vards Uzvards")}, modifier=Modifier.weight(1f))
                     Spacer(Modifier.width(8.dp))
-                    Button(onClick={
-                        employees.removeAt(selected); selected=0.coerceAtLeast(employees.size-1); saveAll(ctx,employees)
-                    }, colors=ButtonDefaults.buttonColors(containerColor=Color(0xFFFFCDD2))){ Text("DZEST", color=Color.Red) }
+                    Button(onClick={ employees.removeAt(selected); selected=0.coerceAtLeast(employees.size-1); saveAll(ctx,employees) }, colors=ButtonDefaults.buttonColors(containerColor=Color(0xFFFFCDD2))){ Text("DZEST", color=Color.Red) }
                 }
 
                 Spacer(Modifier.height(8.dp))
@@ -218,16 +220,19 @@ fun App(){
                         val d = idx+1
                         val date = yearMonth.atDay(d)
                         val isHoliday = holidays.containsKey(date)
+                        val isShort = shortenedDays.contains(date)
                         val isWeekend = date.dayOfWeek.value>=6
                         val dh = monthData.getOrPut(d){ DayHours() }
                         val bg = when{
                             isHoliday -> Color(0xFFFFF9C4)
+                            isShort -> Color(0xFFFFE0B2)
                             isWeekend -> Color(0xFFFFEBEE)
                             else -> Color.White
                         }
                         Row(Modifier.fillMaxWidth().background(bg).padding(vertical=4.dp), verticalAlignment=Alignment.CenterVertically){
                             Column(Modifier.width(70.dp)){
                                 Text("$d. ${lvShort(date.dayOfWeek)}", color=if(isWeekend||isHoliday) Color.Red else Color.Black, fontWeight=FontWeight.Bold)
+                                if(isShort) Text(" -1h", color=Color(0xFFE65100), style=MaterialTheme.typography.labelSmall, fontWeight=FontWeight.Bold)
                                 if(isHoliday) Text(holidays[date]!!.take(10), color=Color(0xFFF57F17), style=MaterialTheme.typography.labelSmall)
                             }
                             OutlinedTextField(value=dh.day, onValueChange={ dh.day=it; saveAll(ctx,employees) }, Modifier.width(80.dp).padding(end=4.dp), keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number), singleLine=true)
@@ -237,29 +242,31 @@ fun App(){
                 }
                 val totalD = monthData.values.mapNotNull{ it.day.toDoubleOrNull() }.sum()
                 val totalN = monthData.values.mapNotNull{ it.night.toDoubleOrNull() }.sum()
+                val virsstundas = (totalD - normHours).coerceAtLeast(0.0)
+                val trukst = (normHours - totalD).coerceAtLeast(0.0)
+
                 Card(Modifier.fillMaxWidth().padding(top=8.dp), colors=CardDefaults.cardColors(containerColor=Color(0xFFE8F5E9))){
                     Column(Modifier.padding(12.dp)){
                         Text("Dienas: $totalD h / Norma $normHours h", fontWeight=FontWeight.Bold)
-                        Text("Nakts: $totalN h (piemaksa atseviski)", fontWeight=FontWeight.Bold, color=Color(0xFFBF360C))
-                        Text("Fakts: ${totalD+totalN} h", fontWeight=FontWeight.Bold)
+                        if(virsstundas>0) Text("VIRSSTUNDAS: $virsstundas h", fontWeight=FontWeight.Bold, color=Color.Red)
+                        else Text("Lidz normai: $trukst h", color=Color(0xFF2E7D32))
+                        Divider(Modifier.padding(vertical=4.dp))
+                        Text("Nakts: $totalN h (atseviski)", fontWeight=FontWeight.Bold, color=Color(0xFFBF360C))
                     }
                 }
-                Button(onClick={ showSalary=true }, modifier=Modifier.fillMaxWidth().padding(top=8.dp)){
-                    Text("APREKINAT ALGU")
-                }
+                Button(onClick={ showSalary=true }, modifier=Modifier.fillMaxWidth().padding(top=8.dp)){ Text("APREKINAT ALGU") }
 
                 if(showSalary){
-                    AlertDialog(onDismissRequest={showSalary=false}, title={Text("Algas aprekinas")},
+                    AlertDialog(onDismissRequest={showSalary=false}, title={Text("Alga")},
                         text={
                             Column{
                                 Text("Darbinieks: ${emp.name}")
                                 Text("Menesis: $monthKey")
+                                Text("Norma: $normHours h (ar saisinatajam)")
                                 Text("Dienas: $totalD h")
-                                Text("Naktis: $totalN h")
-                                Text("Norma: $normHours h")
-                                val virs = (totalD+totalN - normHours).coerceAtLeast(0.0)
-                                Text("Virsstundas: $virs h")
-                                Text("Kad pateiksi likmes, pievienosu formulu.")
+                                Text("Virsstundas: $virsstundas h")
+                                Text("Nakts: $totalN h")
+                                Text("Saisinatas: ${shortenedDays.size} dienas")
                             }
                         },
                         confirmButton={ Button(onClick={showSalary=false}){Text("Aizvert")} }
