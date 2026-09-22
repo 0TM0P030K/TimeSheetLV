@@ -24,8 +24,13 @@ import kotlin.math.min
 
 fun shortDay(d: DayOfWeek): String {
     return when(d){
-        DayOfWeek.MONDAY->"Pr"; DayOfWeek.TUESDAY->"Ot"; DayOfWeek.WEDNESDAY->"Tr"
-        DayOfWeek.THURSDAY->"Ce"; DayOfWeek.FRIDAY->"Pk"; DayOfWeek.SATURDAY->"Se"; else->"Sv"
+        DayOfWeek.MONDAY->"Pr"
+        DayOfWeek.TUESDAY->"Ot"
+        DayOfWeek.WEDNESDAY->"Tr"
+        DayOfWeek.THURSDAY->"Ce"
+        DayOfWeek.FRIDAY->"Pk"
+        DayOfWeek.SATURDAY->"Se"
+        else->"Sv"
     }
 }
 fun loadS(c: Context, k: String, def: String): String {
@@ -40,20 +45,31 @@ fun loadMap(c: Context, key: String): Map<String,String> {
         val o = JSONObject(s)
         val m = mutableMapOf<String,String>()
         val keys = o.keys()
-        while(keys.hasNext()){ val kk = keys.next(); m[kk]=o.getString(kk) }
+        while(keys.hasNext()){
+            val kk = keys.next()
+            m[kk]=o.getString(kk)
+        }
         m
-    }catch(e:Exception){ emptyMap() }
+    }catch(e:Exception){
+        emptyMap()
+    }
 }
 fun saveMap(c: Context, key: String, map: Map<String,String>){
     val o = JSONObject()
-    for(entry in map){ o.put(entry.key, entry.value) }
+    for(entry in map){
+        o.put(entry.key, entry.value)
+    }
     c.getSharedPreferences("timesheet", 0).edit().putString(key,o.toString()).apply()
 }
 
 class MainActivity : ComponentActivity(){
     override fun onCreate(s:Bundle?){
         super.onCreate(s)
-        setContent{ MaterialTheme{ App() } }
+        setContent{
+            MaterialTheme{
+                App()
+            }
+        }
     }
 }
 
@@ -62,19 +78,68 @@ class MainActivity : ComponentActivity(){
 fun App(){
     val ctx = LocalContext.current
     var yearMonth by remember{ mutableStateOf(YearMonth.now()) }
-    val monthKey = "${yearMonth.year}-${yearMonth.monthValue}"
-    var normStr by remember(monthKey){ mutableStateOf(loadS(ctx, "NORM_$monthKey", "168")) }
+    val monthKey = yearMonth.year.toString() + "-" + yearMonth.monthValue.toString()
+    var normStr by remember(monthKey){ mutableStateOf(loadS(ctx, "NORM_" + monthKey, "168")) }
     val norm = normStr.toIntOrNull()?: 168
     var name by remember{ mutableStateOf(loadS(ctx, "NAME", "Jurijs")) }
     var okladStr by remember{ mutableStateOf(loadS(ctx, "OKLAD", "1450")) }
     var apgStr by remember{ mutableStateOf(loadS(ctx, "APG", "0")) }
-    var premStr by remember(monthKey){ mutableStateOf(loadS(ctx, "PREM_$monthKey", "30")) }
-    var days by remember(monthKey){ mutableStateOf(loadMap(ctx, "DAYS_$monthKey")) }
-    var nights by remember(monthKey){ mutableStateOf(loadMap(ctx, "NIGHTS_$monthKey")) }
+    var premStr by remember(monthKey){ mutableStateOf(loadS(ctx, "PREM_" + monthKey, "30")) }
+    var days by remember(monthKey){ mutableStateOf(loadMap(ctx, "DAYS_" + monthKey)) }
+    var nights by remember(monthKey){ mutableStateOf(loadMap(ctx, "NIGHTS_" + monthKey)) }
     var showCalc by remember{ mutableStateOf(false) }
 
     Scaffold(topBar={
-        TopAppBar(title={Text("${yearMonth.monthValue}.${yearMonth.year} N:$norm h")},
+        TopAppBar(title={Text(yearMonth.monthValue.toString() + "." + yearMonth.year.toString() + " N:" + norm.toString() + " h")},
             actions={
                 Button(onClick={ yearMonth = yearMonth.minusMonths(1) }){Text("<")}
                 Spacer(Modifier.width(4.dp))
+                Button(onClick={ yearMonth = yearMonth.plusMonths(1) }){Text(">")}
+            }
+        )
+    }){ pad->
+        Column(Modifier.fillMaxSize().padding(pad).padding(8.dp).verticalScroll(rememberScrollState())){
+            OutlinedTextField(value=name, onValueChange={name=it; saveS(ctx,"NAME",it)}, label={Text("Vards Uzvards")}, modifier=Modifier.fillMaxWidth())
+            Row{
+                OutlinedTextField(value=okladStr, onValueChange={okladStr=it; saveS(ctx,"OKLAD",it)}, label={Text("Oklads EUR")}, modifier=Modifier.weight(1f))
+                Spacer(Modifier.width(4.dp))
+                OutlinedTextField(value=apgStr, onValueChange={apgStr=it; saveS(ctx,"APG",it)}, label={Text("Apg.")}, modifier=Modifier.width(90.dp))
+            }
+            Row{
+                OutlinedTextField(value=normStr, onValueChange={normStr=it; saveS(ctx,"NORM_" + monthKey,it)}, label={Text("Norma h")}, modifier=Modifier.weight(1f))
+                Spacer(Modifier.width(4.dp))
+                OutlinedTextField(value=premStr, onValueChange={premStr=it; saveS(ctx,"PREM_" + monthKey,it)}, label={Text("Premija %")}, modifier=Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth().background(Color(0xFFEEEEEE)).padding(6.dp)){
+                Text("Diena",Modifier.width(60.dp), fontWeight=FontWeight.Bold)
+                Text("Diena",Modifier.width(80.dp), fontWeight=FontWeight.Bold)
+                Text("Nakti",Modifier.width(80.dp), fontWeight=FontWeight.Bold)
+            }
+            for(d in 1..yearMonth.lengthOfMonth()){
+                val dow = yearMonth.atDay(d).dayOfWeek
+                val isWeekend = dow==DayOfWeek.SATURDAY || dow==DayOfWeek.SUNDAY
+                val bg = if(isWeekend) Color(0xFFFFEBEE) else Color.White
+                val dayVal = days[d.toString()]?: ""
+                val nightVal = nights[d.toString()]?: ""
+                Row(Modifier.fillMaxWidth().background(bg).padding(vertical=2.dp)){
+                    Text(d.toString() + " " + shortDay(dow), Modifier.width(60.dp), fontWeight=FontWeight.Bold)
+                    OutlinedTextField(value=dayVal, onValueChange={v-> val m=days.toMutableMap(); m[d.toString()]=v; days=m; saveMap(ctx,"DAYS_" + monthKey,m)}, modifier=Modifier.width(75.dp).padding(end=4.dp), singleLine=true)
+                    OutlinedTextField(value=nightVal, onValueChange={v-> val m=nights.toMutableMap(); m[d.toString()]=v; nights=m; saveMap(ctx,"NIGHTS_" + monthKey,m)}, modifier=Modifier.width(75.dp), singleLine=true)
+                }
+            }
+            val totalD = days.values.mapNotNull{ it.toDoubleOrNull() }.sum()
+            val totalN = nights.values.mapNotNull{ it.toDoubleOrNull() }.sum()
+            val virs = max(0.0, totalD - norm.toDouble())
+            val dienasLidzNormai = min(totalD, norm.toDouble())
+
+            Card(Modifier.fillMaxWidth().padding(top=8.dp), colors=CardDefaults.cardColors(containerColor=Color(0xFFE8F5E9))){
+                Column(Modifier.padding(8.dp)){
+                    Text("Stundas: " + totalD.toString() + " / Norma " + norm.toString(), fontWeight=FontWeight.Bold)
+                    if(virs>0){
+                        Text("VIRSSTUNDAS: " + virs.toString() + " h", color=Color.Red, fontWeight=FontWeight.Bold)
+                    }
+                    Text("Nakts: " + totalN.toString() + " h")
+                }
+            }
+            Button(onClick={showCalc=true}, Modifier.fillMaxWidth().padding(top=8.dp)){Text("APREKINAT ALGU
